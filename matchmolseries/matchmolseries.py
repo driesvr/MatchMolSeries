@@ -347,7 +347,7 @@ class MatchMolSeries:
 
         # Find additional fragments in reference set not present in query
         unique_reference_fragments = (reference_series
-            .join(query_fragments_lazy, on='fragment_smiles', how='left')
+            .join(query_series, on='fragment_smiles', how='left')
             .filter(pl.col('id_right').is_null())
             .select(['fragment_smiles', 'ref_core', 'ref_assay', 'parent_potency'])
             .group_by(['ref_core', 'ref_assay'])

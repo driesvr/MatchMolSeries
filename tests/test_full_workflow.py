@@ -65,7 +65,7 @@ logger.info(f'Query completed in {time.time() - query_start:.2f} seconds')
 
 logger.info("\n=== Putting compounds back together ===")
 combine_start = time.time()
-result['combined_smiles'] = result.apply(lambda row: '|'.join(filter(None, [mms.combine_fragments(row['query_core'], frag) for frag in row['new_fragments'].split('|')])), axis=1)
+result = mms.combine_fragments(result)
 logger.info(f'Combination completed in {time.time() - combine_start:.2f} seconds')
 
 logger.info(result[:10])
