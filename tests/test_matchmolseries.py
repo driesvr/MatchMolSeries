@@ -1,6 +1,5 @@
 import unittest
 import pandas as pd
-import sys
 from matchmolseries import MatchMolSeries
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit import Chem
