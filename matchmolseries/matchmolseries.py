@@ -104,7 +104,7 @@ class MatchMolSeries:
         mol = rdMolStandardize.MetalDisconnector().Disconnect(mol)
         mol = rdMolStandardize.Normalize(mol)
         mol = rdMolStandardize.Reionize(mol)
-        frag_remover.remove(mol)
+        mol = frag_remover.remove(mol)
         Chem.AssignStereochemistry(mol, force=True, cleanIt=True)
         return mol
 

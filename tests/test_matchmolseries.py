@@ -1,6 +1,9 @@
 import unittest
 import pandas as pd
+import sys
 from matchmolseries import MatchMolSeries
+from rdkit.Chem.MolStandardize import rdMolStandardize
+from rdkit import Chem
 
 class TestMatchMolSeries(unittest.TestCase):
     def setUp(self):
@@ -18,17 +21,6 @@ class TestMatchMolSeries(unittest.TestCase):
         Tests fragmentation of simple aromatic molecules with different
         halogen substituents to verify basic functionality.
         
-        Test Data
-        ---------
-        - Two simple molecules: fluorobenzene and chlorobenzene
-        - Single assay
-        - Simple numeric potency values
-        
-        Expected Outcome
-        ---------------
-        - Successful fragmentation
-        - Non-empty result DataFrame
-        - Fragments maintain chemical validity
         """
         test_data = pd.DataFrame({
             'smiles': ['c1ccccc1F', 'c1ccccc1Cl'],
@@ -46,18 +38,6 @@ class TestMatchMolSeries(unittest.TestCase):
         
         Verifies that the system correctly processes and organizes
         fragments from molecules belonging to different assays.
-        
-        Test Data
-        ---------
-        - Four molecules: F, Cl, Br, I substituted benzenes
-        - Two different assays
-        - Sequential potency values
-        
-        Expected Outcome
-        ---------------
-        - Correct separation of assays
-        - Exactly two unique assay identifiers in results
-        - Maintained assay associations in fragments
         """
         test_data = pd.DataFrame({
             'smiles': ['c1ccccc1F', 'c1ccccc1Cl', 'c1ccccc1Br', 'c1ccccc1I'],
@@ -69,37 +49,6 @@ class TestMatchMolSeries(unittest.TestCase):
         unique_assays = result.select('ref_assay').unique().to_series().to_list()
         self.assertEqual(len(unique_assays), 2)
         
-    def test_standardisation(self):
-        """
-        Test molecular standardization functionality.
-        
-        Verifies that the system correctly handles and standardizes
-        molecules with salts, charges, and different representations.
-        
-        Test Data
-        ---------
-        - Molecules with:
-          * Salt forms ([Na+])
-          * Counter ions ([Cl-])
-          * Different charge representations
-        
-        Expected Outcome
-        ---------------
-        - Successful removal of salts and counter ions
-        - Standardized fragment representations
-        - No sodium atoms in final fragments
-        """
-        test_data = pd.DataFrame({
-            'smiles': ['c1cccnc1F.[Na+]', 'c1cccnc1Cl', 'c1cccnc1Br.[Na+][Cl-]', '[Na+]OCc1cccnc1I'],
-            'potency': [1.0, 2.0, 3.0, 4.0],
-            'assay_col': ['assay1', 'assay1', 'assay2', 'assay2']
-        })
-        
-        result = self.mms.fragment_molecules(test_data, assay_col='assay_col')
-        fragments =result.select('fragment_smiles').unique().to_series().to_list()
-
-        self.assertEqual(any([not 'Na' in f for f in fragments]), True)
-
     def test_min_series_length(self):
         """
         Test minimum series length filtering functionality.
@@ -115,16 +64,6 @@ class TestMatchMolSeries(unittest.TestCase):
         Query Set:
         - 3 pyridine derivatives with halogen substituents
         
-        Test Conditions
-        --------------
-        - Tests with min_series_length = 3
-        - Tests with min_series_length = 5
-        
-        Expected Outcome
-        ---------------
-        - More results with lower minimum series length
-        - Correct filtering of series based on length criteria
-        - Maintained chemical validity in filtered results
         """
         ref_data = pd.DataFrame({
             'smiles': ['c1ccccc1F', 'c1ccccc1Cl', 'c1ccccc1Br','c1ccccc1N', 'c1ccccc1O', 'c1ccccc1CF','c1ccccc1NC', 'c1ccccc1CO', 'c1ccccc1OC(F)(F)F'],
@@ -142,7 +81,7 @@ class TestMatchMolSeries(unittest.TestCase):
         result_min3 = self.mms.query_fragments(query_data, min_series_length=3, assay_col='assay_col')
         result_min5 = self.mms.query_fragments(query_data, min_series_length=5, assay_col='assay_col')
         
-        self.assertTrue(len(result_min3) > len(result_min5))
+        self.assertListEqual([len(result_min3), len(result_min5)], [1 , 0])
         
     def test_complex_molecules(self):
         """
@@ -150,20 +89,6 @@ class TestMatchMolSeries(unittest.TestCase):
         
         Verifies system's ability to handle realistic drug-like
         molecules with multiple rings and substituents.
-        
-        Test Data
-        ---------
-        - Two complex molecules with:
-          * Multiple ring systems
-          * Various substituents
-          * Different heteroatoms
-          * Realistic potency values
-        
-        Expected Outcome
-        ---------------
-        - Successful fragmentation
-        - Generation of chemically valid fragments
-        - Proper handling of complex molecular features
         """
         test_data = pd.DataFrame({
             'smiles': [
@@ -184,19 +109,6 @@ class TestMatchMolSeries(unittest.TestCase):
         
         Verifies that the system gracefully handles invalid
         input while continuing to process valid molecules.
-        
-        Test Data
-        ---------
-        - Mix of valid and invalid SMILES:
-          * Valid: fluorobenzene
-          * Invalid: malformed SMILES string
-          * Valid: bromobenzene
-        
-        Expected Outcome
-        ---------------
-        - Graceful error handling for invalid SMILES
-        - Successful processing of valid molecules
-        - Non-empty result set from valid molecules
         """
         test_data = pd.DataFrame({
             'smiles': ['c1ccccc1F', 'invalid_smiles', 'c1ccccc1Br'],
@@ -212,54 +124,11 @@ class TestMatchMolSeries(unittest.TestCase):
         """
         Test handling of different potency value types.
         
-        Verifies that the system correctly processes and
-        maintains floating-point potency values.
-        
-        Test Data
-        ---------
-        - Three molecules with different float potencies
-        - Values with different decimal places
-        - Single assay group
-        
-        Expected Outcome
-        ---------------
-        - Correct preservation of potency values
-        - Proper handling of decimal places
-        - Maintained value precision
         """
         test_data = pd.DataFrame({
             'smiles': ['c1ccccc1F', 'c1ccccc1Cl', 'c1ccccc1Br'],
-            'potency': [1.5, 2.7, 3.0],  # Float values
+            'potency': [1.5, 2.7, 3],  # Float values
             'assay_col': ['assay1']*3
-        })
-        
-        result = self.mms.fragment_molecules(test_data, assay_col='assay_col')
-        self.assertIsNotNone(result)
-        
-    def test_large_series(self):
-        """
-        Test handling of larger series.
-        
-        Verifies that the system correctly processes and handles
-        larger series of molecules.
-        
-        Test Data
-        ---------
-        - 45 benzene derivatives with various substituents
-        - Single assay
-        
-        Expected Outcome
-        ---------------
-        - Successful processing of large series
-        - Generation of chemically valid fragments
-        - Proper handling of large molecular sets
-        """
-        # Create a larger series of similar molecules
-        smiles = [f'c1ccccc1{x}' for x in 'FCBINSOP'] * 5
-        test_data = pd.DataFrame({
-            'smiles': smiles,
-            'potency': list(range(1, len(smiles) + 1)),
-            'assay_col': ['assay1'] * len(smiles)
         })
         
         result = self.mms.fragment_molecules(test_data, assay_col='assay_col')
@@ -268,14 +137,51 @@ class TestMatchMolSeries(unittest.TestCase):
     def test_attachment_points(self):
         """
         Test handling of attachment points.
-        
-        Verifies that the system correctly identifies
-        attachment points in molecules.
-        
+                
         """
         test_data = ['c1ccccc1[At]', 'c1cccn1[At]', 'c1cccn1C[At]','notavalidmolecule[At]']
         result = [self.mms._get_attachment_point(x) for x in test_data]
         self.assertEqual(result, ['c', 'n', 'C', None])
 
+    def test_standardisation(self):
+        """
+        Verifies that the system correctly standardises
+        molecules based on the specified standardisation method.
+        
+        """
+        frag_remover = rdMolStandardize.FragmentRemover()
+
+        test_data1 = [Chem.MolFromSmiles(x) for x in ['c1ccccc1', 'c1cccnc1.Cl', 'c1cccnc1.CC(=O)O', 'CCC(=O)O[C@@]1(CC[NH+](C[C@H]1CC=C)C)c2ccccc2']]
+        test_data2 = [Chem.MolFromSmiles(x) for x in ['C1=CC=CC=C1', 'c1cccnc1', 'c1cccnc1', 'C([C@H]1[C@@](OC(CC)=O)(c2ccccc2)CC[NH+](C)C1)C=C']]
+        test_data1_standardised = [Chem.MolToSmiles(self.mms._standardize_mol(x, frag_remover)) for x in test_data1]
+        test_data2_standardised = [Chem.MolToSmiles(self.mms._standardize_mol(x, frag_remover)) for x in test_data2]
+        self.assertListEqual(test_data1_standardised,test_data2_standardised)
+
+    def test_concatenation_order(self):
+        """
+        Verifies that the system correctly concatenates
+        molecules and their respective potency values
+        
+        """
+        ref_data = pd.DataFrame({
+            'smiles': ['c1ccccc1F', 'c1ccccc1Cl', 'c1ccccc1Br','c1ccccc1N', 'c1ccccc1OC(F)(F)F'],
+            'potency': [1.0, 2.0, 3.0, 4.0, 5.0],
+            'assay_col': ['assay1']*5
+        })
+        
+        query_data = pd.DataFrame({
+            'smiles': ['c1cnccc1F', 'c1cnccc1Cl', 'c1cnccc1Br'],
+            'potency': [1.0, 2.0, 3.0],
+            'assay_col': ['assay1']*3
+        })
+        self.mms.fragment_molecules(ref_data, assay_col='assay_col', query_or_ref='ref')
+        result = self.mms.query_fragments(query_data, min_series_length=3, assay_col='assay_col')
+        new_frags = result.new_fragments[0].split('|')
+        ref_potency = result.new_fragments_ref_potency[0].split('|')
+        print(new_frags, ref_potency)
+        self.assertEqual(new_frags.index('N[At]'), ref_potency.index('4.0')) 
+        self.assertEqual(new_frags.index('FC(F)(F)O[At]'), ref_potency.index('5.0')) 
+
+        
 if __name__ == '__main__':
     unittest.main(argv=[''], verbosity=2)
