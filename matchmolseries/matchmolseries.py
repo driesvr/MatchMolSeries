@@ -335,14 +335,11 @@ class MatchMolSeries:
                 pl.col('parent_potency_right').cast(pl.Utf8).str.join('|').alias('query_potencies'),
                 (pl.col('parent_potency') * pl.col('parent_potency_right')).sum().alias('potency_dot_product'),
                 (pl.col('parent_potency') ** 2).sum().alias('reference_potency_norm_sq'),
-                (pl.col('parent_potency_right') ** 2).sum().alias('query_potency_norm_sq')
+                (pl.col('parent_potency_right') ** 2).sum().alias('query_potency_norm_sq'),
+                ((pl.col('parent_potency') - pl.col('parent_potency').mean() - 
+                (pl.col('parent_potency_right') - pl.col('parent_potency_right').mean()))**2).mean().sqrt().alias('cRMSD')
             ])
             .filter(pl.col('series_length') >= min_series_length)
-            .with_columns([
-                (pl.col('potency_dot_product') / (pl.col('reference_potency_norm_sq').sqrt() * pl.col('query_potency_norm_sq').sqrt()))
-                .alias('potency_cosine_similarity')
-            ])
-            .drop(['potency_dot_product', 'reference_potency_norm_sq', 'query_potency_norm_sq'])
         )
 
         # Find additional fragments in reference set not present in query
@@ -362,7 +359,7 @@ class MatchMolSeries:
                 'query_core', 
                 'ref_assay', 
                 'query_assay', 
-                'potency_cosine_similarity', 
+                'cRMSD',
                 'series_length', 
                 'common_fragments',
                 'reference_potencies',

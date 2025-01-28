@@ -55,14 +55,6 @@ class TestMatchMolSeries(unittest.TestCase):
         Verifies that the system correctly filters matched molecular
         series based on the minimum series length parameter.
         
-        Test Data
-        ---------
-        Reference Set:
-        - 9 benzene derivatives with various substituents
-        - Single assay
-        Query Set:
-        - 3 pyridine derivatives with halogen substituents
-        
         """
         ref_data = pd.DataFrame({
             'smiles': ['c1ccccc1F', 'c1ccccc1Cl', 'c1ccccc1Br','c1ccccc1N', 'c1ccccc1O', 'c1ccccc1CF','c1ccccc1NC', 'c1ccccc1CO', 'c1ccccc1OC(F)(F)F'],
@@ -144,6 +136,8 @@ class TestMatchMolSeries(unittest.TestCase):
 
     def test_standardisation(self):
         """
+        Test standardisation of molecules.
+
         Verifies that the system correctly standardises
         molecules based on the specified standardisation method.
         
@@ -158,6 +152,8 @@ class TestMatchMolSeries(unittest.TestCase):
 
     def test_concatenation_order(self):
         """
+        Test concatenation order.
+
         Verifies that the system correctly concatenates
         molecules and their respective potency values
         
@@ -177,9 +173,37 @@ class TestMatchMolSeries(unittest.TestCase):
         result = self.mms.query_fragments(query_data, min_series_length=3, assay_col='assay_col')
         new_frags = result.new_fragments[0].split('|')
         ref_potency = result.new_fragments_ref_potency[0].split('|')
-        print(new_frags, ref_potency)
         self.assertEqual(new_frags.index('N[At]'), ref_potency.index('4.0')) 
         self.assertEqual(new_frags.index('FC(F)(F)O[At]'), ref_potency.index('5.0')) 
+
+    def test_cRMSD(self):
+        """
+        Test cRMSD calculation.
+        
+        """
+        ref_data = pd.DataFrame({
+            'smiles': ['c1ccccc1F', 'c1ccccc1Cl', 'c1ccccc1Br','c1ccccc1N', 'c1ccccc1OC(F)(F)F'],
+            'potency': [1.0, 2.0, 3.0, 4.0, 5.0],
+            'assay_col': ['assay1']*5
+        })
+        
+        query_data = pd.DataFrame({
+            'smiles': ['c1cnccc1F', 'c1cnccc1Cl', 'c1cnccc1Br'],
+            'potency': [1.0, 2.0, 3.0],
+            'assay_col': ['assay1']*3
+        })
+
+        query_data2 = pd.DataFrame({
+            'smiles': ['c1cnccc1F', 'c1cnccc1Cl', 'c1cnccc1Br'],
+            'potency': [2.0, 2.0, 3.0],
+            'assay_col': ['assay1']*3
+        })
+
+        self.mms.fragment_molecules(ref_data, assay_col='assay_col', query_or_ref='ref')
+        result = self.mms.query_fragments(query_data, min_series_length=3, assay_col='assay_col')
+        result2 = self.mms.query_fragments(query_data2, min_series_length=3, assay_col='assay_col')
+        self.assertAlmostEqual(result.cRMSD[0], 0.0)
+        self.assertAlmostEqual(result2.cRMSD[0], 0.47140452078125)
 
         
 if __name__ == '__main__':
