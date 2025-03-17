@@ -270,7 +270,8 @@ class MatchMolSeries:
         return fragments_df
 
     def query_fragments(self, query_dataset: pd.DataFrame, min_series_length: int = 3, 
-                       assay_col: str = 'assay', standardize: bool = True,
+                       assay_col: str = 'assay', smiles_col: str = 'smiles', 
+                       potency_col: str = 'potency', standardize: bool = True,
                        fragments_already_processed: bool = False,
                        max_fragsize_fraction: float = 0.5) -> pl.DataFrame:
         """
@@ -284,6 +285,10 @@ class MatchMolSeries:
             Minimum number of fragments required to consider a series
         assay_col : str, default='assay'
             Name of column containing assay identifiers
+        smiles_col : str, default='smiles'
+            Name of column containing SMILES strings
+        potency_col : str, default='potency'
+            Name of column containing potency values
         standardize : bool, default=True
             Whether to standardize molecules using RDKit standardization methods
         max_fragsize_fraction : float, default=0.5
@@ -300,7 +305,8 @@ class MatchMolSeries:
             self.query_fragments_df = pl.from_pandas(query_dataset) if not isinstance(query_dataset, pl.DataFrame) else query_dataset
         else:
             self.fragment_molecules(query_dataset, assay_col=assay_col, query_or_ref='query',
-                              max_fragsize_fraction=max_fragsize_fraction, standardize=standardize)
+                              max_fragsize_fraction=max_fragsize_fraction, standardize=standardize,
+                              smiles_col=smiles_col, potency_col=potency_col)
 
         # Convert to lazy DataFrames
         reference_fragments_lazy = self.fragments_df.lazy()
