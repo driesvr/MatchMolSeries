@@ -104,6 +104,7 @@ class MatchMolSeries:
         mol = rdMolStandardize.MetalDisconnector().Disconnect(mol)
         mol = rdMolStandardize.Normalize(mol)
         mol = rdMolStandardize.Reionize(mol)
+
         mol = frag_remover.remove(mol)
         Chem.AssignStereochemistry(mol, force=True, cleanIt=True)
         return mol
@@ -193,6 +194,7 @@ class MatchMolSeries:
             products = []
             for rxn in self.splitting_reactions:
                 products.extend(rxn.RunReactants((mol,)))
+                products.extend([[mol,Chem.MolFromSmiles('[At]')]])
             
             # Process each product
             for cut_idx, frags in enumerate(products):
