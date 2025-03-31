@@ -46,10 +46,9 @@ class MatchMolSeries:
         self.combine_reaction = AllChem.ReactionFromSmarts('[*:1][At].[At][*:2]>>[*:1]-[*:2]')
         self.splitting_reactions = [
             AllChem.ReactionFromSmarts('[*;R:1]-!@[*:2]>>[*:1][At].[At][*:2]'),
-            AllChem.ReactionFromSmarts('[!#6;!R:1]-!@[C;!X3;!R:2]>>[*:1][At].[At][*:2]'),
-            AllChem.ReactionFromSmarts('[*!H0:1]>>[*:1][At].[At]')
-
+            AllChem.ReactionFromSmarts('[!#6;!R:1]-!@[C;!X3;!R:2]>>[*:1][At].[At][*:2]')
         ]
+        self.H_fragmentation_reaction = AllChem.ReactionFromSmarts('[*!H0:1]>>[*:1][At].[At]')
         self.attachment_point_substruct = Chem.MolFromSmarts('[*:1][At]')
     
     def load_fragments(self, fragments_file: str):
@@ -116,7 +115,7 @@ class MatchMolSeries:
     def fragment_molecules(self, input_df: pd.DataFrame, query_or_ref: str = 'ref',
                      smiles_col: str = 'smiles', potency_col: str = 'potency',
                      assay_col: str = 'assay', max_mol_atomcount: float = 100,
-                     standardize: bool = True, 
+                     standardize: bool = True, H_as_fragment: bool = False,
                      max_fragsize_fraction: float = 0.5) -> pl.DataFrame:
         """
         Fragment molecules from an input DataFrame using SMARTS-based chemical transformations.
@@ -140,6 +139,8 @@ class MatchMolSeries:
             Whether to standardize molecules using RDKit's StandardizeMol
         max_fragsize_fraction : float, default=0.5
             Maximum allowed size of fragment relative to parent molecule (0.0-1.0)
+        H_as_fragment : bool, default=False
+            Whether to treat hydrogen atoms as fragments
             
         Returns
         -------
@@ -157,6 +158,10 @@ class MatchMolSeries:
             raise ValueError("Input DataFrame is empty")
         if not all(col in input_df.columns for col in [smiles_col, potency_col, assay_col]):
             raise ValueError(f"Missing required columns: {smiles_col}, {potency_col}, or {assay_col}")
+        
+        if H_as_fragment:
+            #add a separate reaction for hydrogen atoms
+            self.splitting_reactions.append(self.H_fragmentation_reaction)
 
         frag_remover = rdMolStandardize.FragmentRemover()
 
