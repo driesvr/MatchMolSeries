@@ -46,7 +46,9 @@ class MatchMolSeries:
         self.combine_reaction = AllChem.ReactionFromSmarts('[*:1][At].[At][*:2]>>[*:1]-[*:2]')
         self.splitting_reactions = [
             AllChem.ReactionFromSmarts('[*;R:1]-!@[*:2]>>[*:1][At].[At][*:2]'),
-            AllChem.ReactionFromSmarts('[!#6;!R:1]-!@[C;!X3;!R:2]>>[*:1][At].[At][*:2]')
+            AllChem.ReactionFromSmarts('[!#6;!R:1]-!@[C;!X3;!R:2]>>[*:1][At].[At][*:2]'),
+            AllChem.ReactionFromSmarts('[*!H0:1]>>[*:1][At].[At]')
+
         ]
         self.attachment_point_substruct = Chem.MolFromSmarts('[*:1][At]')
     
@@ -194,7 +196,6 @@ class MatchMolSeries:
             products = []
             for rxn in self.splitting_reactions:
                 products.extend(rxn.RunReactants((mol,)))
-                products.extend([[mol,Chem.MolFromSmiles('[At]')]])
             
             # Process each product
             for cut_idx, frags in enumerate(products):
@@ -261,7 +262,7 @@ class MatchMolSeries:
             })
         
         fragments_df = fragments_df.unique(subset=['parent_smiles', 'fragment_smiles'] + 
-                                        (['ref_assay'] if query_or_ref == 'ref' else ['assay']))
+                                        (['ref_assay', 'ref_core'] if query_or_ref == 'ref' else ['assay', 'core_smiles']))
 
         # Store DataFrame
         if query_or_ref == 'query':
